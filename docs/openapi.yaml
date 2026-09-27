@@ -1,0 +1,668 @@
+openapi: 3.1.0
+
+info:
+  title: Contrato de Integracao PubliBot
+  version: "1.4.0"
+  description: |
+    Rotas que um site implementa para receber conteudo do PubliBot.
+
+    Agnostico de linguagem e plataforma: sao rotas HTTP com JSON. Todas as
+    requisicoes partem do PubliBot; o site nunca chama o PubliBot.
+
+    Ver docs/contrato/README.md para as regras de assinatura, idempotencia e
+    sanitizacao, que sao normativas.
+
+servers:
+  - url: https://{host}/api/v1
+    variables:
+      host:
+        default: exemplo.com.br
+
+security:
+  - assinatura: []
+
+components:
+  securitySchemes:
+    assinatura:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      description: |
+        Acompanhada obrigatoriamente de X-Timestamp, X-Nonce e X-Signature.
+        Assinatura: HMAC-SHA256(segredo, "{ts}.{nonce}.{sha256(corpo_bruto)}").
+        Compare em tempo constante; recuse instante fora da janela de 300s.
+
+  parameters:
+    Idempotencia:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+      description: |
+        Guarde com indice UNICO. Chave repetida devolve 200 com a publicacao
+        existente, sem criar outra.
+
+  schemas:
+    Erro:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: invalid_payload }
+            message: { type: string }
+            details: { type: object }
+            request_id: { type: string, format: uuid }
+
+    Autor:
+      type: object
+      description: |
+        O cadastro de autor vive SOMENTE no PubliBot. O site nao tem cadastro
+        proprio e nao precisa criar um: tudo o que ele sabe sobre quem assinou
+        chega junto com o conteudo, a cada publicacao.
+
+        A foto NAO vem aqui. O corpo traz `has_photo`; se o site quiser o
+        arquivo, responde `author_photo_required: true` e recebe a foto depois,
+        em `POST /author-photos/`. Ver a secao "Foto do autor" no README.
+      required: [name]
+      properties:
+        name: { type: string, example: "Ana Souza" }
+        credentials:
+          type: string
+          example: "Enfermeira Obstetra, COREN-SP 123456"
+          description: Renderize junto ao conteudo. Sem isso nao ha como avaliar a autoria.
+        bio: { type: string, description: Mini biografia para a caixa de autor. }
+        email: { type: string, format: email }
+        phone: { type: string }
+        social_links:
+          type: array
+          items:
+            type: object
+            required: [label, url]
+            properties:
+              label: { type: string, example: Instagram }
+              url: { type: string, format: uri }
+        reference:
+          type: string
+          format: uuid
+          description: |
+            Identidade estavel do autor no PubliBot. Use como chave ao guardar
+            a foto: o nome muda, esta referencia nao.
+        has_photo:
+          type: boolean
+          description: |
+            Ha foto de perfil disponivel para este autor. Se voce ainda nao a
+            tem, peca com `author_photo_required` na resposta.
+        profile_url: { type: string, format: uri }
+
+    ImagemPorReferencia:
+      type: object
+      description: |
+        A imagem viaja por REFERENCIA, nunca embutida. Base64 infla o corpo em
+        33% e o limite padrao do Nginx e 1 MB: o envio falharia com 413 antes
+        de chegar a aplicacao.
+      required: [url, mime_type, sha256]
+      properties:
+        url: { type: string, format: uri, description: URL assinada, valida por 24h }
+        mime_type: { type: string, example: image/webp }
+        width: { type: integer }
+        height: { type: integer }
+        bytes: { type: integer }
+        sha256: { type: string }
+        alt_text: { type: string }
+
+    PublicacaoDeArtigo:
+      type: object
+      required: [type, idempotency_key, title, html_content, status]
+      properties:
+        type: { type: string, enum: [article] }
+        idempotency_key: { type: string, format: uuid }
+        title: { type: string, maxLength: 300 }
+        slug: { type: string }
+        html_content:
+          type: string
+          description: Sanitize antes de gravar. Ver a lista de tags no README.
+        excerpt: { type: string }
+        meta_description: { type: string, maxLength: 160 }
+        focus_keyword: { type: string }
+        language: { type: string, example: pt-br }
+        tags: { type: array, items: { type: string } }
+        category: { type: string }
+        author: { $ref: "#/components/schemas/Autor" }
+        reviewed_by: { type: string }
+        reviewed_at: { type: string, format: date-time }
+        content_disclosure:
+          type: string
+          description: Renderize visivelmente junto ao conteudo.
+        canonical_source:
+          type: string
+          format: uri
+          description: |
+            A FONTE principal do artigo (o estudo, a tabela citada) — o destino
+            do link de referencia. NUNCA use como `<link rel="canonical">`: o
+            canonical do artigo e o endereco dele no SEU site. Apontar o
+            canonical para a fonte diz ao Google que o artigo e copia dela, e
+            ele sai da busca.
+        related_articles:
+          type: array
+          maxItems: 5
+          description: |
+            Recurso `related_articles`. Links internos escolhidos pelo PubliBot
+            ("Leia tambem"): artigos ja publicados do mesmo assunto, os que
+            convertem primeiro. So vem quando ha algum.
+          items:
+            type: object
+            required: [remote_id, title, url]
+            properties:
+              remote_id: { type: string }
+              title: { type: string }
+              url: { type: string, format: uri }
+        cover_image: { $ref: "#/components/schemas/ImagemPorReferencia" }
+        faq:
+          type: array
+          maxItems: 20
+          description: |
+            Recurso `faq`. Perguntas frequentes revisadas por uma pessoa, na
+            ordem em que devem aparecer. Viajam SEPARADAS do `html_content`:
+            onde e como exibir (bloco no fim, sanfona, JSON-LD) e decisao do
+            site. Ausente quando nao ha nenhuma — nunca uma lista vazia.
+            Ver a secao "Perguntas frequentes" no README.
+          items: { $ref: "#/components/schemas/PerguntaFrequente" }
+        call_to_action:
+          type: string
+          enum: [none, end, inline]
+          description: |
+            Recurso `call_to_action`. Onde o site mostra o bloco da chamada
+            para a oferta dele: `none` em lugar nenhum, `end` no fim, `inline`
+            no fim e no lugar do `<aside data-publibot="chamada"></aside>` que
+            vem no `html_content`. O bloco e do site. Ver o README.
+        status: { type: string, enum: [draft, published, scheduled] }
+        publish_at:
+          type: string
+          format: date-time
+          description: Obrigatorio quando status = scheduled.
+
+    LeituraDoDia:
+      type: object
+      required: [remote_id, date]
+      properties:
+        remote_id: { type: string, description: "O id devolvido por /publish/." }
+        date: { type: string, format: date }
+        views: { type: integer, minimum: 0 }
+        engaged_views:
+          type: integer
+          minimum: 0
+          description: Aberturas com pelo menos 10 s de tempo ATIVO.
+        engaged_seconds:
+          type: integer
+          minimum: 0
+          description: Soma do tempo ativo (aba visivel e interacao nos ultimos 30 s).
+        read_to_end: { type: integer, minimum: 0 }
+        cta_views: { type: integer, minimum: 0 }
+        cta_clicks: { type: integer, minimum: 0 }
+
+    Conversao:
+      type: object
+      required: [id, date]
+      properties:
+        id: { type: string, description: "Estavel: coletar de novo nao duplica." }
+        date: { type: string, format: date }
+        kind: { type: string, example: whatsapp }
+        via_cta:
+          type: boolean
+          description: O clique foi no bloco da chamada de um artigo.
+        first_channel:
+          type: string
+          enum: [organic, paid, social, referral, email, direct, other]
+          description: |
+            Por onde a pessoa ENTROU no site pela primeira vez nos 30 dias da
+            jornada. `paid` = anuncio (gclid, gbraid, wbraid, msclkid ou
+            utm_medium de midia paga). E o que separa a conversao do PubliBot
+            da do anuncio.
+        last_channel:
+          type: string
+          enum: [organic, paid, social, referral, email, direct, other]
+          description: A ultima entrada antes de converter.
+        journey:
+          type: array
+          maxItems: 20
+          description: Artigos lidos nos 30 dias anteriores, do primeiro ao ultimo.
+          items:
+            type: object
+            required: [remote_id]
+            properties:
+              remote_id: { type: string }
+              engaged_seconds: { type: integer, minimum: 0 }
+
+    PerguntaFrequente:
+      type: object
+      required: [question, answer_html]
+      properties:
+        question:
+          type: string
+          maxLength: 300
+          description: Texto puro. Sanitize como `title`.
+          example: "Medir a pressao em casa substitui a consulta?"
+        answer_html:
+          type: string
+          description: |
+            HTML curto, ja sanitizado pelo PubliBot com a mesma lista de tags
+            do `html_content` e SEM links. Sanitize de novo antes de gravar.
+          example: "<p>Nao. A medida em casa complementa o acompanhamento.</p>"
+
+    PublicacaoDeResposta:
+      type: object
+      required: [type, idempotency_key, question_id, html_content, status]
+      properties:
+        type: { type: string, enum: [qa] }
+        idempotency_key: { type: string, format: uuid }
+        question_id: { type: string }
+        html_content: { type: string }
+        language: { type: string }
+        author: { $ref: "#/components/schemas/Autor" }
+        reviewed_by: { type: string }
+        reviewed_at: { type: string, format: date-time }
+        content_disclosure: { type: string }
+        status: { type: string, enum: [draft, published] }
+
+    RespostaDePublicacao:
+      type: object
+      required: [status, remote_id, url]
+      properties:
+        status: { type: string, enum: [success, already_exists, updated, already_applied] }
+        remote_id:
+          type: string
+          description: |
+            Identificador estavel do lado do site. A URL muda se o slug for
+            editado; sem um id estavel e impossivel corrigir ou despublicar.
+        idempotency_key: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        slug: { type: string }
+        post_status: { type: string }
+        published_at: { type: string, format: date-time }
+        version:
+          type: integer
+          description: Recurso `update`. 1 na criacao; +1 a cada atualizacao aplicada.
+        updated_at: { type: string, format: date-time, nullable: true }
+        author_photo_required:
+          type: boolean
+          default: false
+          description: |
+            Recurso `author_photo`. Peca a foto de perfil quando `has_photo`
+            for verdadeiro e voce ainda nao tiver o arquivo. O PubliBot entao
+            envia a imagem em `POST /author-photos/`, fora deste corpo.
+
+            Responder `true` a cada publicacao faz o mesmo arquivo ser enviado
+            de novo: responda `true` apenas enquanto realmente faltar a foto.
+
+paths:
+  /health/:
+    get:
+      summary: Versao do contrato e recursos suportados
+      description: |
+        Consultado no cadastro do site. O PubliBot grava as capacidades e
+        degrada com elegancia — sem isso, adicionar um campo obrigatorio
+        quebraria todos os sites instalados.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [contract_versions, capabilities]
+                properties:
+                  contract_versions:
+                    type: array
+                    items: { type: string }
+                    example: ["v1"]
+                  implementation: { type: string, example: "publibot-django 1.0.0" }
+                  capabilities:
+                    type: array
+                    items:
+                      type: string
+                      enum: [idempotency, hmac_signature, cursor_pagination,
+                             image_by_url, author_photo, qa, reconciliation,
+                             faq, update, call_to_action, insights,
+                             related_articles, unpublish]
+                  server_time: { type: string, format: date-time }
+
+  /seo-context/:
+    get:
+      summary: Contexto do site
+      description: |
+        Devolve as publicacoes existentes para o PubliBot evitar temas que
+        competem com o proprio conteudo do site.
+
+        Pagine e permita sincronizacao incremental: um site com milhares de
+        publicacoes devolveria tudo a cada chamada, e o conteudo iria inteiro
+        para dentro do prompt.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 100, maximum: 500 } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: published_after, in: query, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [site_title, published_posts]
+                properties:
+                  site_title: { type: string }
+                  home_content_text:
+                    type: string
+                    maxLength: 8000
+                    description: Trunque em 8000 caracteres.
+                  published_posts:
+                    type: array
+                    items:
+                      type: object
+                      required: [remote_id, title, url]
+                      properties:
+                        remote_id: { type: string }
+                        title: { type: string }
+                        url: { type: string, format: uri }
+                        published_at: { type: string, format: date-time }
+                        primary_keyword: { type: string }
+                        word_count: { type: integer }
+                  next_cursor: { type: string, nullable: true }
+
+  /publish/:
+    post:
+      summary: Recebe conteudo para publicacao
+      parameters:
+        - $ref: "#/components/parameters/Idempotencia"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/PublicacaoDeArtigo"
+                - $ref: "#/components/schemas/PublicacaoDeResposta"
+              discriminator:
+                propertyName: type
+                mapping:
+                  article: "#/components/schemas/PublicacaoDeArtigo"
+                  qa: "#/components/schemas/PublicacaoDeResposta"
+      responses:
+        "201":
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RespostaDePublicacao" }
+        "200":
+          description: |
+            Chave de idempotencia ja processada. Devolve a publicacao existente
+            sem criar outra.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RespostaDePublicacao" }
+        "401":
+          description: Chave ou assinatura invalida. Mesmo corpo para todos os casos.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422":
+          description: Conteudo recusado pela sanitizacao
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "429":
+          description: Limite excedido
+          headers:
+            Retry-After: { schema: { type: integer } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+
+  /author-photos/:
+    post:
+      summary: Recebe a foto de perfil de um autor
+      description: |
+        Recurso `author_photo`. Chamado somente depois de o site responder
+        `author_photo_required: true` em `/publish/`.
+
+        **multipart/form-data, nao JSON.** A foto e o unico arquivo binario do
+        contrato; embutida em JSON viraria base64, 33% maior, num corpo que o
+        Nginx corta em 1 MB por padrao — o envio falharia com 413 antes de
+        chegar a aplicacao.
+
+        **Trate como assincrona.** Aceite o arquivo, responda `202` e processe
+        depois: redimensionar ou regravar uma imagem dentro da requisicao
+        estoura o tempo limite de leitura do PubliBot e faz o mesmo arquivo ser
+        reenviado.
+
+        O arquivo chega sempre em **WebP**, ja redimensionado para no maximo
+        1600 px no maior lado. Nao ha negociacao de formato: a conversao
+        acontece no PubliBot, no momento do upload.
+
+        Guarde pela `author_reference`, nao pelo nome do autor — o nome muda.
+        Confira o `sha256` antes de gravar; se nao bater, responda `422` com
+        `content_rejected` e o PubliBot reenvia.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [author_reference, sha256, photo]
+              properties:
+                author_reference:
+                  type: string
+                  format: uuid
+                  description: O mesmo `author.reference` recebido em /publish/.
+                sha256:
+                  type: string
+                  description: Digest do arquivo, para conferir a integridade.
+                photo:
+                  type: string
+                  format: binary
+                  description: Imagem WebP, no maximo 1600 px no maior lado.
+      responses:
+        "202":
+          description: Aceita para processamento
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [accepted] }
+                  job_id:
+                    type: string
+                    description: |
+                      Opcional. Guardado pelo PubliBot apenas para auditoria —
+                      ele nao consulta o andamento.
+        "200":
+          description: |
+            Este arquivo ja tinha sido recebido (mesmo `sha256`). Nao grave de
+            novo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [already_exists] }
+        "413":
+          description: Arquivo acima do limite aceito
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422":
+          description: Digest divergente, ou arquivo que nao abre como imagem
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+
+  /pending-questions/:
+    get:
+      summary: Perguntas ainda nao respondidas
+      description: |
+        Recurso `qa`. Pagine por cursor e implemente a confirmacao: a unica
+        coisa que remove uma pergunta do estado pendente e a publicacao, que so
+        acontece apos revisao humana — potencialmente dias depois. Sem
+        confirmacao, cada ciclo reimportaria as mesmas perguntas.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pending_questions:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, question_text, submitted_at]
+                      properties:
+                        id: { type: string }
+                        question_text: { type: string, maxLength: 500 }
+                        submitted_at: { type: string, format: date-time }
+                        author_name:
+                          type: string
+                          description: |
+                            Opcional. Nao e necessario para produzir o
+                            conteudo; envie apenas se houver consentimento
+                            registrado para exibicao publica.
+                        consent_at: { type: string, format: date-time, nullable: true }
+                  next_cursor: { type: string, nullable: true }
+
+  /pending-questions/ack/:
+    post:
+      summary: Confirma o recebimento das perguntas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: Confirmado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  acknowledged: { type: integer }
+
+  /publications/:
+    get:
+      summary: Consulta uma publicacao pela chave de idempotencia
+      description: |
+        Recurso `reconciliation`. Chamado antes de repetir um envio apos
+        timeout: o conteudo pode ter sido gravado e apenas a resposta ter se
+        perdido.
+      parameters:
+        - { name: idempotency_key, in: query, required: true,
+            schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: "#/components/schemas/RespostaDePublicacao" }
+
+  /publications/{remote_id}/:
+    put:
+      summary: Substitui o conteudo de um artigo ja publicado
+      description: |
+        Recurso `update`. O corpo e o MESMO de `POST /publish/` (`type:
+        article`), e substitui o conteudo inteiro — nao e atualizacao parcial.
+
+        O endereco da pagina NAO muda: ignore o `slug` recebido. A pagina ja
+        acumulou links e posicao no Google com aquele endereco; trocar a URL
+        numa atualizacao jogaria isso fora. Se o seu site precisar mudar o
+        endereco, responda a URL nova e redirecione a antiga com 301.
+
+        Idempotente por `Idempotency-Key`: a mesma chave da ultima atualizacao
+        aplicada devolve `already_applied` com o estado atual, sem aplicar de
+        novo. Chave nova aplica. Guarde ao menos a ultima chave por
+        publicacao.
+      parameters:
+        - $ref: "#/components/parameters/Idempotencia"
+        - { name: remote_id, in: path, required: true, schema: { type: string },
+            description: "O `remote_id` devolvido por /publish/." }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicacaoDeArtigo" }
+      responses:
+        "200":
+          description: Atualizado (`updated`) ou ja aplicado (`already_applied`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RespostaDePublicacao" }
+        "401":
+          description: Chave ou assinatura invalida. Mesmo corpo para todos os casos.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "404":
+          description: Nenhuma publicacao com esse `remote_id`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "422":
+          description: Conteudo recusado pela sanitizacao
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "429":
+          description: Limite excedido
+          headers:
+            Retry-After: { schema: { type: integer } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+
+  /insights/:
+    get:
+      summary: Leitura por dia e conversoes
+      description: |
+        Recurso `insights`. Numeros agregados pelo site, sem identificar
+        ninguem. Uma linha por publicacao e dia, com o total do dia: o
+        PubliBot pede os ultimos dias de novo e grava por cima. Ver "Leitura e
+        conversoes" no README.
+      parameters:
+        - { name: since, in: query, required: true,
+            schema: { type: string, format: date },
+            description: "Data mais antiga pedida (ate 90 dias para tras)." }
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reading:
+                    type: array
+                    items: { $ref: "#/components/schemas/LeituraDoDia" }
+                  conversions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Conversao" }
+                  next_cursor: { type: [string, "null"] }
+        "401":
+          description: Chave ou assinatura invalida. Mesmo corpo para todos os casos.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }

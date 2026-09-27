@@ -1,0 +1,61 @@
+# Os testes em cada banco que o Django suporta de fato em produção.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        banco: [sqlite, postgres, mysql]
+        django: ["4.2", "5.2"]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: publibot_core
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 10
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: publibot_core
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -proot" --health-interval 5s --health-retries 20
+    env:
+      BANCO: ${{ matrix.banco }}
+      DB_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]" "Django~=${{ matrix.django }}.0"
+      - if: matrix.banco == 'postgres'
+        run: pip install "psycopg[binary]"
+      - if: matrix.banco == 'mysql'
+        run: pip install mysqlclient
+      - run: ruff check . && ruff format --check .
+      - if: matrix.banco == 'postgres'
+        run: pytest -q
+        env:
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+      - if: matrix.banco == 'mysql'
+        run: pytest -q
+        env:
+          DB_USER: root
+          DB_PASSWORD: root
+      - if: matrix.banco == 'sqlite'
+        run: pytest -q
+      - name: migracao em dia
+        if: matrix.banco == 'sqlite'
+        run: django-admin makemigrations publibot_core --check --dry-run --pythonpath . --settings tests.settings
