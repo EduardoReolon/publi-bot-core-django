@@ -66,8 +66,12 @@ class Publication(models.Model):
     content_disclosure = models.TextField(blank=True)
 
     canonical_source = models.URLField(max_length=500, blank=True)
+    # A capa chega por URL (no PubliBot) e e baixada para o site: o contrato
+    # pede servir do proprio dominio, sem hotlink. Use `capa_url` no template.
     cover_image_url = models.URLField(max_length=500, blank=True)
     cover_image_alt = models.CharField(max_length=300, blank=True)
+    cover_image_sha256 = models.CharField(max_length=64, blank=True)
+    cover_image = models.ImageField(upload_to="publibot/capas/", blank=True)
 
     # Perguntas frequentes, separadas do corpo: [{"question", "answer_html"}],
     # ja sanitizadas. Onde e como mostrar e decisao do template.
@@ -121,6 +125,18 @@ class Publication(models.Model):
         from publibot_core.conf import valor
 
         return valor("PUBLIBOT_PUBLIC_URL").rstrip("/") + self.get_absolute_url()
+
+    @property
+    def capa_url(self) -> str:
+        """A capa servida pelo site; enquanto nao baixou, a URL de origem."""
+        if self.cover_image:
+            return self.cover_image.url
+        return self.cover_image_url
+
+    @property
+    def data_de_atualizacao(self):
+        """A ultima atualizacao do conteudo (para dateModified e o sitemap)."""
+        return self.updated_at or self.data_de_publicacao
 
     @property
     def data_de_publicacao(self):

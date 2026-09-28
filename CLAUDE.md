@@ -15,7 +15,8 @@ cliente que chama estas rotas) está em EduardoReolon/publi-bot, em
   Tabela nova que o site não usa vai para `models/_internos.py`, fora do
   `__all__` e do admin.
 - **Documentação junto com o código:** o que o site usa está em
-  `docs/PARA_IA.md`; como instalar, em `docs/IMPLANTACAO.md`. Campo novo em
+  `docs/PARA_IA.md`; como instalar, em `docs/IMPLANTACAO.md`; para que o site
+  existe e as regras de SEO, em `docs/SEO_DO_SITE.md`. Campo novo em
   model público entra na tabela do PARA_IA no mesmo commit.
 - **Versão:** `publibot_core/__init__.py::__version__` e uma entrada no
   `CHANGELOG.md` a cada mudança. O site atualiza com

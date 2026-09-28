@@ -4,6 +4,10 @@ Leia isto antes de escrever views, templates ou formulários que usem conteúdo
 do PubliBot. Tudo o que o site precisa está aqui. O resto do pacote é a API
 que o PubliBot chama, e o site não deve mexer nela.
 
+**Leia também [SEO_DO_SITE.md](SEO_DO_SITE.md)**: para que o site existe (ser
+achado no Google e converter), o que toda página de artigo precisa ter e os
+erros que tiram o artigo da busca.
+
 ## A divisão de trabalho
 
 | Quem | Faz |
@@ -41,8 +45,9 @@ Existem outras (leitura por dia, conversões, nonces), em
 | `author_reference` | UUID | Liga à `AuthorPhoto`. Use `artigo.foto_do_autor` ou a tag `foto_do_autor`. |
 | `reviewed_by`, `reviewed_at` | texto, data | "Revisado por", quando houver. |
 | `content_disclosure` | texto | Aviso sobre como o conteúdo foi produzido. Mostre, se vier preenchido. |
-| `canonical_source` | URL | Se vier, use em `<link rel="canonical">`. |
-| `cover_image_url`, `cover_image_alt` | URL, texto | Capa (a imagem fica no PubliBot, por URL). |
+| `canonical_source` | URL | A FONTE principal citada (o estudo). **Nunca** use como `<link rel="canonical">`: o canonical é o endereço do próprio artigo. |
+| `cover_image_alt` | texto | O `alt` da capa. |
+| `capa_url` (propriedade) | URL | A capa. O app baixa a imagem para `MEDIA_ROOT/publibot/capas/` e serve do site; enquanto não baixou, é a URL de origem. Não use `cover_image_url` direto. |
 | `faq` | lista `[{"question", "answer_html"}]` | Perguntas frequentes, separadas do corpo. Veja o exemplo com schema.org abaixo. |
 | `call_to_action` | `"none"`, `"end"` ou `"inline"` | Onde vai o bloco da sua oferta. As tags cuidam disso. |
 | `related_articles` | lista `[{"remote_id", "title", "url"}]` | "Leia também", escolhido pelo PubliBot. Tag `leia_tambem`. |
@@ -65,6 +70,8 @@ Métodos e propriedades:
   `PUBLIBOT_QA_PATH`) do settings.
 - `artigo.url`: o endereço completo. É o que volta ao PubliBot.
 - `artigo.data_de_publicacao`: para mostrar e ordenar.
+- `artigo.data_de_atualizacao`: "Atualizado em" (a última versão recebida).
+- `artigo.capa_url`: a capa servida pelo site.
 - `artigo.foto_do_autor`: a `AuthorPhoto`, ou `None`.
 
 **Não grave nesta tabela.** O PubliBot substitui o conteúdo a cada
@@ -104,6 +111,7 @@ A foto chega **depois** da primeira publicação do autor. Até lá,
 
 | Tag | O que faz |
 |---|---|
+| `{% publibot_head artigo %}` | No `<head>`: title, description, canonical, Open Graph e JSON-LD (`Article` e `FAQPage`). |
 | `{% corpo_com_chamada artigo %}` | O corpo. Se o artigo pede a chamada no meio (`inline`), põe o seu bloco no lugar da marca. |
 | `{% chamada_no_fim artigo %}` | O seu bloco no fim (`end` e `inline`). Nada em `none`. |
 | `{% leia_tambem artigo %}` | A lista "Leia também". |
@@ -167,15 +175,16 @@ def artigo(request, slug):
 {% load publibot static %}
 <html lang="{{ artigo.language }}">
 <head>
-  <title>{{ artigo.title }}</title>
-  <meta name="description" content="{{ artigo.meta_description }}">
-  {% if artigo.canonical_source %}<link rel="canonical" href="{{ artigo.canonical_source }}">{% endif %}
+  {% publibot_head artigo %}
 </head>
 <body>
 <article data-publibot-id="{{ artigo.id }}">
   <h1>{{ artigo.title }}</h1>
-  {% if artigo.cover_image_url %}<img src="{{ artigo.cover_image_url }}" alt="{{ artigo.cover_image_alt }}">{% endif %}
-  <p>{{ artigo.author_name }} · {{ artigo.author_credentials }} · {{ artigo.data_de_publicacao|date:"d/m/Y" }}</p>
+  {% if artigo.capa_url %}<img src="{{ artigo.capa_url }}" alt="{{ artigo.cover_image_alt }}" width="1200" height="630">{% endif %}
+  {% foto_do_autor artigo as foto %}
+  <p>{% if foto %}<img src="{{ foto }}" alt="{{ artigo.author_name }}" width="48" height="48">{% endif %}
+     {{ artigo.author_name }} · {{ artigo.author_credentials }} · {{ artigo.data_de_publicacao|date:"d/m/Y" }}
+     {% if artigo.version > 1 %} · atualizado em {{ artigo.data_de_atualizacao|date:"d/m/Y" }}{% endif %}</p>
   {% corpo_com_chamada artigo %}
   {% if artigo.faq %}
     <section><h2>Perguntas frequentes</h2>
@@ -210,6 +219,7 @@ VisitorQuestion.objects.create(
 - Mudar a URL de um artigo publicado (`PUBLIBOT_ARTICLE_PATH`) sem
   redirecionar a antiga: o endereço acumula posição no Google.
 - Ler as tabelas de `_internos`.
+- Usar `canonical_source` como canonical (tira o artigo da busca).
 - Mostrar `html_content` direto quando o artigo tem chamada: a marca
   `<aside data-publibot="chamada">` ficaria na página. Use
   `{% corpo_com_chamada %}`.

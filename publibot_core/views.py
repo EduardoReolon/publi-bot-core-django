@@ -16,6 +16,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from publibot_core import RECURSOS, VERSOES_DO_CONTRATO, __version__, conf
 from publibot_core.auth import conferir_assinatura
+from publibot_core.capa import agendar_download_da_capa
 from publibot_core.models import AuthorPhoto, Publication, VisitorQuestion
 from publibot_core.paginacao import cursor_de, depois_do_cursor
 from publibot_core.sanitize import ConteudoRecusado, sanitizar, sanitizar_texto
@@ -210,6 +211,8 @@ def publish(request):
             _resposta(existente, status="already_exists", quer_foto=quer_foto), status=200
         )
 
+    agendar_download_da_capa(publicacao)
+
     if publicacao.kind == Publication.Kind.QA and publicacao.question_id:
         VisitorQuestion.objects.filter(id=publicacao.question_id).update(answered_at=timezone.now())
 
@@ -237,6 +240,7 @@ def _campos_do_conteudo(dados: dict) -> dict:
         "canonical_source": dados.get("canonical_source", "")[:500],
         "cover_image_url": capa.get("url", "")[:500],
         "cover_image_alt": sanitizar_texto(capa.get("alt_text", "")),
+        "cover_image_sha256": str(capa.get("sha256") or "")[:64],
         "faq": _faq_sanitizado(dados.get("faq")),
         "call_to_action": _chamada(dados.get("call_to_action")),
         "related_articles": _relacionados(dados.get("related_articles")),
@@ -295,6 +299,7 @@ def update_publication(request, remote_id):
         atual.updated_at = timezone.now()
         atual.last_update_key = chave
         atual.save()
+    agendar_download_da_capa(atual)
 
     return JsonResponse(
         _resposta(atual, status="updated", quer_foto=_precisa_da_foto(dados.get("author") or {})),

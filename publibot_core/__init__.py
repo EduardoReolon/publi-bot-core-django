@@ -3,7 +3,7 @@
 Leia docs/PARA_IA.md (o que o site usa) e docs/IMPLANTACAO.md (como instalar).
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 VERSOES_DO_CONTRATO = ["v1"]
 

@@ -64,8 +64,12 @@ python manage.py collectstatic   # o leitura.js
 - **Banco:** qualquer um suportado pelo Django. Nada depende do Postgres. Os
   campos `JSONField` pedem SQLite com JSON1 (o padrão desde o Python 3.9) ou
   MySQL 5.7+.
-- **Mídia:** as fotos de autor vão para `MEDIA_ROOT/publibot/autores/`. O
-  servidor web precisa servir `MEDIA_URL`.
+- **Mídia:** as fotos de autor vão para `MEDIA_ROOT/publibot/autores/` e as
+  capas para `MEDIA_ROOT/publibot/capas/`. O servidor web precisa servir
+  `MEDIA_URL`.
+- **Capas:** baixadas logo depois de cada publicação, em segundo plano. O que
+  falhar (rede, digest) fica pendente; um cron de hora em hora resolve:
+  `python manage.py publibot_baixar_capas`.
 - **Cache:** o limite de requisições por IP usa o cache do Django. Com um
   processo só, o padrão (memória) basta; com vários, use Redis ou o cache em
   banco. A proteção contra reenvio (nonce) fica no banco e não depende disso.
@@ -88,7 +92,24 @@ client_max_body_size 12m;   # corpo de /publish/ e fotos
 O relógio do servidor precisa estar certo (NTP): requisição com mais de
 5 minutos de diferença é recusada.
 
-## 5. Conferir
+## 5. Sitemap
+
+```python
+# settings.py
+INSTALLED_APPS = [..., "django.contrib.sitemaps"]
+
+# urls.py
+from django.contrib.sitemaps.views import sitemap
+from publibot_core.sitemaps import PublicationSitemap
+
+sitemaps = {"blog": PublicationSitemap}  # e as outras paginas do site
+(path("sitemap.xml", sitemap, {"sitemaps": sitemaps}),)
+```
+
+Envie `https://www.seusite.com.br/sitemap.xml` no Search Console. O que mais
+o site precisa para o Google: [SEO_DO_SITE.md](SEO_DO_SITE.md).
+
+## 6. Conferir
 
 No site:
 
@@ -102,7 +123,7 @@ No PubliBot: `manage.py conferir_instalacao`, linha **site**. Ela chama a
 rota `health/` com assinatura, provando que chave, segredo, endereço e
 relógio batem dos dois lados.
 
-## 6. Template
+## 7. Template
 
 Veja [PARA_IA.md](PARA_IA.md): a lista do blog, a página do artigo, a
 chamada, o "Leia também", a medição e o formulário de pergunta.

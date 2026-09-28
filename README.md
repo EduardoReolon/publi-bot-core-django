@@ -47,6 +47,7 @@ Publication.objects.visiveis()  # a lista do blog
 
 ```django
 {% load publibot %}
+<head>{% publibot_head artigo %}</head>
 <article data-publibot-id="{{ artigo.id }}">
   <h1>{{ artigo.title }}</h1>
   {% corpo_com_chamada artigo %}
@@ -58,6 +59,9 @@ Publication.objects.visiveis()  # a lista do blog
 Tudo o que o site usa (tabelas, campos, tags, exemplos de view e template):
 [docs/PARA_IA.md](docs/PARA_IA.md). Escrito para ser lido por uma IA que vai
 montar ou mudar o site.
+
+Para que o site existe (ser achado no Google e converter) e o que toda página
+de artigo precisa ter: [docs/SEO_DO_SITE.md](docs/SEO_DO_SITE.md).
 
 ## Atualizar
 

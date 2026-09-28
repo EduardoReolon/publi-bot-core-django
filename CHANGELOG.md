@@ -1,5 +1,18 @@
 # Mudanças
 
+## 1.1.0
+
+Rode `migrate`. Recomendado: `publibot_baixar_capas` num cron de hora em hora.
+
+- A capa passa a ser baixada para o site (o contrato pede servir do próprio
+  domínio): `artigo.capa_url`. Campos novos `cover_image` e `cover_image_sha256`.
+- `{% publibot_head artigo %}`: title, description, canonical (o do próprio
+  artigo), Open Graph e JSON-LD `Article`/`FAQPage`.
+- `publibot_core.sitemaps.PublicationSitemap`, com `lastmod` real.
+- `docs/SEO_DO_SITE.md`: para que o site existe e o que a página precisa ter.
+- Corrigido o exemplo do PARA_IA que usava `canonical_source` como canonical
+  (isso tiraria o artigo da busca).
+
 ## 1.0.0
 
 Primeira versão como pacote, a partir da implementação de referência que vivia
