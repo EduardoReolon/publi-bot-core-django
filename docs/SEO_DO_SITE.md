@@ -69,8 +69,9 @@ anúncio no meio do artigo.
 
 ## A chamada para a oferta
 
-O bloco é do site (template `publibot/chamada.html`). O PubliBot só decide
-**se** e **onde** ele entra: no fim, no meio (depois da seção que trata do
+O bloco é do site (template `publibot/chamada.html`). O PubliBot decide
+**se** e **onde** ele entra, e escreve o texto dele para cada artigo
+(`texto` no template; o seu texto fica como reserva). Onde entra: no fim, no meio (depois da seção que trata do
 que a oferta resolve) ou em nenhum lugar (tema longe da oferta). Um bloco
 curto, com uma frase e um botão, converte mais que um banner. Mantenha
 `data-publibot-bloco` e `data-publibot-conversao` (é a medição).

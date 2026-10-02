@@ -1,5 +1,18 @@
 # Mudanças
 
+## 1.2.0
+
+Rode `migrate` (faça um novo deploy do site; ver `docs/IMPLANTACAO.md`, "Atualizar").
+
+- Campo novo `call_to_action_copy`: o texto do bloco da chamada escrito pelo
+  PubliBot para cada artigo (`{"inline"|"end": {"title", "text", "button"}}`),
+  gravado como texto puro e dentro dos limites (70, 200 e 30 caracteres).
+- O template `publibot/chamada.html` recebe `texto` (o do lugar: meio ou fim)
+  além de `onde`. **Ajuste o seu template** para usar `texto.title`,
+  `texto.text` e `texto.button` com o seu texto como reserva (exemplo em
+  `docs/PARA_IA.md`). Sem o ajuste, nada quebra: o bloco segue com o seu texto.
+- `docs/openapi.yaml` atualizado (`TextoDaChamada`).
+
 ## 1.1.1
 
 Sem migração. Faça um novo deploy do site; se o deploy do site não reinstalar a

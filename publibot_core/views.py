@@ -243,6 +243,7 @@ def _campos_do_conteudo(dados: dict) -> dict:
         "cover_image_sha256": str(capa.get("sha256") or "")[:64],
         "faq": _faq_sanitizado(dados.get("faq")),
         "call_to_action": _chamada(dados.get("call_to_action")),
+        "call_to_action_copy": _texto_da_chamada(dados.get("call_to_action_copy")),
         "related_articles": _relacionados(dados.get("related_articles")),
         "post_status": dados.get("status", "published")[:20],
     }
@@ -335,6 +336,30 @@ def _chamada(valor) -> str:
     # Valor desconhecido (versao futura do contrato) cai no comportamento de
     # sempre: o bloco so no fim.
     return valor if valor in {"none", "end", "inline"} else "end"
+
+
+LIMITES_DO_TEXTO_DA_CHAMADA = {"title": 70, "text": 200, "button": 30}
+
+
+def _texto_da_chamada(bruto) -> dict:
+    """O texto do bloco por artigo, so texto puro e dentro dos limites. Parte
+    sem titulo ou sem texto e descartada (o template usa o padrao)."""
+    from django.utils.html import strip_tags
+
+    if not isinstance(bruto, dict):
+        return {}
+    texto = {}
+    for parte in ("inline", "end"):
+        campos = bruto.get(parte)
+        if not isinstance(campos, dict):
+            continue
+        limpo = {
+            campo: " ".join(strip_tags(str(campos.get(campo) or "")).split())[:limite]
+            for campo, limite in LIMITES_DO_TEXTO_DA_CHAMADA.items()
+        }
+        if limpo["title"] and limpo["text"]:
+            texto[parte] = limpo
+    return texto
 
 
 def _faq_sanitizado(bruto) -> list[dict]:

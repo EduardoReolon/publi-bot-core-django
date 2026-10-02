@@ -67,6 +67,9 @@ def test_publicar_e_idempotente_e_sanitiza(api, artigo):
     assert '<aside data-publibot="chamada"></aside>' in publicacao.html_content
     assert publicacao.faq == [{"question": "O que e BDI?", "answer_html": "<p>Uma taxa.</p>"}]
     assert publicacao.call_to_action == "inline"
+    assert publicacao.call_to_action_copy == {
+        "inline": {"title": "Pagou xcaro?", "text": "Mande a nota.", "button": "Ir"}
+    }
 
 
 def test_script_e_recusado(api, artigo):
