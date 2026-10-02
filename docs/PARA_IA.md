@@ -129,7 +129,7 @@ chamada, mantenha:
 
 ## Referências do artigo
 
-O corpo (`artigo.body_html`) termina com a lista de todas as fontes que o
+O corpo (`artigo.html_content`) termina com a lista de todas as fontes que o
 texto cita:
 
 ```html

@@ -2,15 +2,18 @@
 
 ## 1.1.1
 
-Sem migração. Reinstale o pacote no servidor (a linha aponta para `@main`, e o
-deploy só reinstala quando o `requirements.txt` muda):
-`pip install -U "publi-bot-core-django @ git+https://github.com/EduardoReolon/publi-bot-core-django@main"`.
+Sem migração. Faça um novo deploy do site; se o deploy do site não reinstalar a
+biblioteca, rode no servidor
+`pip install -U "publi-bot-core-django @ git+https://github.com/EduardoReolon/publi-bot-core-django@main"`
+e reinicie (ver `docs/IMPLANTACAO.md`, "Atualizar").
 
 - O sanitizador aceita `details` e `summary` (com `class` e `open` em
   `details`): é a lista de referências que o PubliBot põe no fim do artigo
   (`<details class="publibot-referencias">`). Antes as tags eram removidas e a
   lista aparecia sempre aberta, como texto comum.
 - `docs/PARA_IA.md`: seção "Referências do artigo".
+- `docs/IMPLANTACAO.md`: atualizar é um novo deploy do site, que reinstala a
+  biblioteca de `@main` a cada vez; `pip install -U` à mão só se o deploy não fizer isso.
 
 ## 1.1.0
 

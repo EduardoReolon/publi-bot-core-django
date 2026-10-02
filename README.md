@@ -65,6 +65,10 @@ de artigo precisa ter: [docs/SEO_DO_SITE.md](docs/SEO_DO_SITE.md).
 
 ## Atualizar
 
+Faça um novo deploy do site, se ele reinstala a biblioteca a cada vez (o
+recomendado, ver [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md#atualizar)). Se não
+reinstala, no servidor:
+
 ```bash
 pip install -U "publi-bot-core-django @ git+https://github.com/EduardoReolon/publi-bot-core-django@main"
 python manage.py migrate
