@@ -137,11 +137,22 @@ chamada, o "Leia também", a medição e o formulário de pergunta.
 
 ## Atualizar
 
+O jeito recomendado: o **deploy do site reinstala a biblioteca a cada vez**, a
+partir de `@main`, e roda `migrate` e `collectstatic` em seguida. Assim, para o
+site pegar uma versão nova basta um novo deploy (push na `main` do site ou
+rodar o workflow de novo).
+
+Se o deploy do site não reinstala a biblioteca (por exemplo, só reinstala
+quando o `requirements.txt` muda, e a linha aponta sempre para `@main`), rode no
+servidor:
+
 ```bash
 pip install -U "publi-bot-core-django @ git+https://github.com/EduardoReolon/publi-bot-core-django@main"
 python manage.py migrate
 python manage.py collectstatic
 ```
+
+e reinicie o serviço.
 
 Antes, leia o [CHANGELOG](../CHANGELOG.md): ele diz quando uma versão pede
 algo além disso.
