@@ -43,10 +43,15 @@ TAGS_PERMITIDAS = {
     "figcaption",
     "span",
     "div",
+    # A lista de referencias do fim do artigo (`<details class=
+    # "publibot-referencias">`): abre e fecha sem JavaScript.
+    "details",
+    "summary",
 }
 
 ATRIBUTOS_PERMITIDOS = {
     "a": {"href", "title", "rel", "target"},
+    "details": {"class", "open"},
     "img": {"src", "alt", "title", "width", "height", "loading"},
     "th": {"scope", "colspan", "rowspan"},
     "td": {"colspan", "rowspan"},
