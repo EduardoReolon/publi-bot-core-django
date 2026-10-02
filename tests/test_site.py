@@ -62,3 +62,17 @@ def test_comando_de_conferencia(capsys, settings):
     settings.PUBLIBOT_REQUIRE_HTTPS = True
     call_command("publibot_conferir")
     assert "Pronto para receber" in capsys.readouterr().out
+
+
+def test_sanitizador_mantem_a_lista_de_referencias():
+    """A lista do fim do artigo abre e fecha: as tags precisam sobreviver."""
+    from publibot_core.sanitize import sanitizar
+
+    html = (
+        '<p>Texto.</p><details class="publibot-referencias" open onclick="x()">'
+        '<summary>Referências</summary><ol><li><a href="https://doi.org/1">A</a></li></ol>'
+        "</details>"
+    )
+    limpo = sanitizar(html)
+    assert '<details class="publibot-referencias" open' in limpo
+    assert "<summary>Referências</summary>" in limpo and "onclick" not in limpo

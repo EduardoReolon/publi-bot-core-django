@@ -127,6 +127,30 @@ chamada, mantenha:
 
 É por eles que a medição conta a chamada vista, o clique e a conversão.
 
+## Referências do artigo
+
+O corpo (`artigo.body_html`) termina com a lista de todas as fontes que o
+texto cita:
+
+```html
+<details class="publibot-referencias" open>
+  <summary>Referências</summary>
+  <ol><li><a href="https://doi.org/...">Gupta et al., 2006</a></li>...</ol>
+</details>
+```
+
+No texto, só as fontes principais (até duas) viram link; as outras aparecem
+citadas pelo nome, e todas estão na lista. A lista vem **aberta** (`open`) nos
+artigos de pesquisa científica e **recolhida** nos demais ("Ver todas as
+referências (N)"). Abrir e fechar é do próprio navegador: não precisa de
+JavaScript.
+
+- Mude a aparência pela classe `publibot-referencias` no CSS do site.
+- Se o CSS do site esconde o marcador padrão do `summary`, ponha um próprio
+  (▸ fechado, ▾ aberto), senão não fica claro que dá para abrir.
+- Não remova o bloco nem as tags: o pacote já aceita `details` e `summary`
+  no sanitizador.
+
 ## Medição (leitura e conversão)
 
 Inclua o script em **todas** as páginas com artigo **e** na landing page da
