@@ -81,6 +81,11 @@ class Publication(models.Model):
     # O template usa as tags {% corpo_com_chamada %} e {% chamada_no_fim %}.
     call_to_action = models.CharField(max_length=8, default="end")
 
+    # O texto do bloco escrito para este artigo, em texto puro:
+    # {"inline": {"title", "text", "button"}, "end": {...}}. Vazio, ou sem a
+    # parte, o bloco usa o texto padrao do template. Ver `texto_da_chamada`.
+    call_to_action_copy = models.JSONField(default=dict, blank=True)
+
     # "Leia tambem": [{"remote_id", "title", "url"}], ja conferidos.
     related_articles = models.JSONField(default=list, blank=True)
 
@@ -146,6 +151,12 @@ class Publication(models.Model):
     @property
     def chamada_no_fim(self) -> bool:
         return self.call_to_action in {"end", "inline"}
+
+    def texto_da_chamada(self, onde: str) -> dict:
+        """O texto do bloco para `onde` ("meio" ou "fim"), ou {} (use o padrao)."""
+        parte = {"meio": "inline", "fim": "end"}.get(onde, onde)
+        texto = (self.call_to_action_copy or {}).get(parte)
+        return texto if isinstance(texto, dict) else {}
 
     def html_com_chamada(self, bloco: str) -> str:
         """O corpo, com o bloco do site no lugar da marca (so no modo inline)."""

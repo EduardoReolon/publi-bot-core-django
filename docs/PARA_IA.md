@@ -50,6 +50,7 @@ Existem outras (leitura por dia, conversões, nonces), em
 | `capa_url` (propriedade) | URL | A capa. O app baixa a imagem para `MEDIA_ROOT/publibot/capas/` e serve do site; enquanto não baixou, é a URL de origem. Não use `cover_image_url` direto. |
 | `faq` | lista `[{"question", "answer_html"}]` | Perguntas frequentes, separadas do corpo. Veja o exemplo com schema.org abaixo. |
 | `call_to_action` | `"none"`, `"end"` ou `"inline"` | Onde vai o bloco da sua oferta. As tags cuidam disso. |
+| `call_to_action_copy` | `{"inline": {...}, "end": {...}}`, cada um `{"title", "text", "button"}` | O texto do bloco escrito para este artigo (texto puro). Chega ao template do bloco como `texto`. Pode vir vazio. |
 | `related_articles` | lista `[{"remote_id", "title", "url"}]` | "Leia também", escolhido pelo PubliBot. Tag `leia_tambem`. |
 | `question_id` | texto | Em `kind="qa"`: o id da `VisitorQuestion` respondida. |
 | `post_status` | `"published"`, `"draft"` ou `"scheduled"` | Use `Publication.objects.visiveis()` em vez de filtrar à mão. |
@@ -126,6 +127,24 @@ chamada, mantenha:
 - `data-publibot-conversao="<tipo>"` no botão (ex.: `whatsapp`, `contato`).
 
 É por eles que a medição conta a chamada vista, o clique e a conversão.
+
+O texto do bloco pode vir do artigo. O PubliBot escreve, para cada artigo, um
+título, uma frase e o texto do botão ligados ao que o leitor acabou de ler (no
+meio, a seção onde o bloco entra; no fim, o fecho do artigo). O template recebe
+isso como `texto` (`{}` quando não veio), além de `onde` (`"meio"` ou `"fim"`).
+Use o seu texto como reserva; o link e o tipo de conversão continuam seus:
+
+```django
+<aside class="chamada" data-publibot-bloco>
+  <h3>{{ texto.title|default:"Seu título padrão" }}</h3>
+  <p>{{ texto.text|default:"Sua frase padrão." }}</p>
+  <a data-publibot-conversao="whatsapp" href="https://wa.me/...">
+    {{ texto.button|default:"Falar no WhatsApp" }}</a>
+</aside>
+```
+
+Não use `|safe` nesses campos: são texto puro, e o autoescape do Django é o
+que basta.
 
 ## Referências do artigo
 

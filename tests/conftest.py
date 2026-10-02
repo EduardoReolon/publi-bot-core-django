@@ -58,6 +58,14 @@ ARTIGO = {
     "author": {"name": "Ana", "credentials": "CREA", "reference": str(uuid.uuid4())},
     "faq": [{"question": "O que e BDI?", "answer_html": "<p>Uma taxa.</p>"}],
     "call_to_action": "inline",
+    "call_to_action_copy": {
+        "inline": {
+            "title": "Pagou <script>x</script>caro?",
+            "text": "Mande  a\nnota.",
+            "button": "Ir",
+        },
+        "end": {"title": "So titulo"},
+    },
     "related_articles": [{"remote_id": "1", "title": "Outro", "url": "https://exemplo.com.br/b/"}],
 }
 

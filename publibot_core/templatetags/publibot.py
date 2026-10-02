@@ -8,7 +8,9 @@
     </article>
 
 O bloco vem de `publibot/chamada.html`. Sobrescreva esse template no seu
-projeto com o texto, o botao e o link da sua oferta.
+projeto com o texto padrao, o botao e o link da sua oferta. O template recebe
+`texto` ({"title", "text", "button"}), escrito pelo PubliBot para o artigo e
+para o lugar, ou {} — use-o com o padrao como reserva.
 """
 
 from __future__ import annotations
@@ -25,7 +27,8 @@ register = template.Library()
 
 
 def _bloco(publicacao, onde: str) -> str:
-    return render_to_string("publibot/chamada.html", {"publicacao": publicacao, "onde": onde})
+    contexto = {"publicacao": publicacao, "onde": onde, "texto": publicacao.texto_da_chamada(onde)}
+    return render_to_string("publibot/chamada.html", contexto)
 
 
 @register.simple_tag

@@ -4,8 +4,13 @@
   antes deste app. Mantenha data-publibot-bloco no elemento de fora e
   data-publibot-conversao no botao: e por eles que leitura.js conta a chamada
   vista, o clique e a conversao.
+
+  `texto` traz o texto escrito para este artigo e este lugar ({"title",
+  "text", "button"}, texto puro) ou vem vazio: use o seu padrao como reserva.
+  O link e o tipo de conversao continuam sendo os seus.
 {% endcomment %}
 <aside class="publibot-chamada publibot-chamada--{{ onde }}" data-publibot-bloco>
-  <p>Quer que um especialista olhe o seu caso?</p>
-  <a data-publibot-conversao="contato" href="/contato/">Fale com a gente</a>
+  <p><strong>{{ texto.title|default:"Quer que um especialista olhe o seu caso?" }}</strong></p>
+  {% if texto.text %}<p>{{ texto.text }}</p>{% endif %}
+  <a data-publibot-conversao="contato" href="/contato/">{{ texto.button|default:"Fale com a gente" }}</a>
 </aside>

@@ -76,3 +76,16 @@ def test_sanitizador_mantem_a_lista_de_referencias():
     limpo = sanitizar(html)
     assert '<details class="publibot-referencias" open' in limpo
     assert "<summary>Referências</summary>" in limpo and "onclick" not in limpo
+
+
+def test_bloco_usa_o_texto_do_artigo_e_o_padrao_como_reserva():
+    p = _publicacao(
+        call_to_action_copy={"inline": {"title": "No meio <b>&</b>", "text": "Frase do meio"}}
+    )
+    html = Template("{% load publibot %}{% corpo_com_chamada p %}|{% chamada_no_fim p %}").render(
+        Context({"p": p})
+    )
+    meio, fim = html.split("|")
+    assert "No meio &lt;b&gt;&amp;&lt;/b&gt;" in meio and "Frase do meio" in meio
+    assert "Fale com a gente" in meio
+    assert "Quer que um especialista" in fim
