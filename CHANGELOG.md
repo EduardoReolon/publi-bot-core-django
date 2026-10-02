@@ -1,5 +1,13 @@
 # Mudanças
 
+## 1.2.1
+
+Só documentação; nada a rodar.
+
+- `docs/IMPLANTACAO.md` e `docs/SEO_DO_SITE.md`: o `robots.txt` com a linha
+  `Sitemap:` (com exemplo de view), e o envio no Search Console como
+  recomendado uma vez, para ver o status e os erros.
+
 ## 1.2.0
 
 Rode `migrate` (faça um novo deploy do site; ver `docs/IMPLANTACAO.md`, "Atualizar").

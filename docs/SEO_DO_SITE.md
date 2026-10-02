@@ -50,7 +50,10 @@ anúncio no meio do artigo.
 
 - **Sitemap** com todas as páginas, e `lastmod` real:
   `publibot_core.sitemaps.PublicationSitemap` cobre os artigos (ver
-  IMPLANTACAO). Envie o endereço no Search Console.
+  IMPLANTACAO), e o `robots.txt` com a linha
+  `Sitemap: https://www.seusite.com.br/sitemap.xml`, que faz os buscadores
+  acharem o sitemap sozinhos. Enviar também no Search Console (uma vez) é o
+  que mostra o status e os erros da leitura.
 - **Search Console** verificado para o domínio. É por ele que o PubliBot vê
   cliques e posições (a conta de serviço do PubliBot precisa de acesso).
 - **HTTPS** em tudo, e um só domínio (com ou sem `www`, o outro redireciona).

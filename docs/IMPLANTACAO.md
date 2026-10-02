@@ -106,8 +106,33 @@ sitemaps = {"blog": PublicationSitemap}  # e as outras paginas do site
 (path("sitemap.xml", sitemap, {"sitemaps": sitemaps}),)
 ```
 
-Envie `https://www.seusite.com.br/sitemap.xml` no Search Console. O que mais
-o site precisa para o Google: [SEO_DO_SITE.md](SEO_DO_SITE.md).
+E o `robots.txt` na raiz do site apontando para ele (é por aí que o Google, o
+Bing e os outros buscadores acham o sitemap sozinhos):
+
+```python
+# urls.py
+from django.http import HttpResponse
+
+def robots_txt(request):
+    linhas = [
+        "User-agent: *",
+        "Allow: /",
+        f"Sitemap: {request.scheme}://{request.get_host()}/sitemap.xml",
+    ]
+    return HttpResponse("\n".join(linhas) + "\n", content_type="text/plain")
+
+(path("robots.txt", robots_txt),)
+```
+
+Confira em `https://www.seusite.com.br/robots.txt`: a linha `Sitemap:` tem de
+trazer o endereço completo, com `https://`. Se o site já tem um `robots.txt`,
+só acrescente essa linha (e veja se nada bloqueia o blog com `Disallow`).
+
+Recomendado, uma vez: enviar o sitemap também no Search Console (Sitemaps ›
+endereço completo, `https://www.seusite.com.br/sitemap.xml`). Não é o que faz
+o Google achar o sitemap — o `robots.txt` já faz —, mas é lá que aparecem o
+status ("Sucesso"), os erros e quantas páginas foram lidas. O que mais o site
+precisa para o Google: [SEO_DO_SITE.md](SEO_DO_SITE.md).
 
 ## 6. Conferir
 
