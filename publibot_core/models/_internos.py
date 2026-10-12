@@ -25,12 +25,39 @@ class DailyReading(models.Model):
     engaged_views = models.PositiveIntegerField(default=0)
     engaged_seconds = models.PositiveIntegerField(default=0)
     read_to_end = models.PositiveIntegerField(default=0)
+    # Rolou pelo menos ate a metade do texto (1.3.0).
+    half_read = models.PositiveIntegerField(default=0)
     cta_views = models.PositiveIntegerField(default=0)
     cta_clicks = models.PositiveIntegerField(default=0)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["publication", "day"], name="publibot_leitura_do_dia")
+        ]
+
+
+class SourceReading(models.Model):
+    """A mesma leitura do dia, separada pela origem da visita (1.3.0): o canal
+    e a fonte (`utm_source`, ou quem mandou). Nenhum leitor, so contadores."""
+
+    publication = models.ForeignKey(
+        "publibot_core.Publication", on_delete=models.CASCADE, related_name="+"
+    )
+    day = models.DateField()
+    channel = models.CharField(max_length=10)
+    source = models.CharField(max_length=40, blank=True)
+    views = models.PositiveIntegerField(default=0)
+    engaged_views = models.PositiveIntegerField(default=0)
+    engaged_seconds = models.PositiveIntegerField(default=0)
+    read_to_end = models.PositiveIntegerField(default=0)
+    half_read = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["publication", "day", "channel", "source"],
+                name="publibot_leitura_por_origem",
+            )
         ]
 
 
