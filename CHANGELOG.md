@@ -1,5 +1,20 @@
 # Mudanças
 
+## 1.3.0
+
+Rode `migrate` (faça um novo deploy do site; ver `docs/IMPLANTACAO.md`, "Atualizar").
+Nada a mudar nos templates: o `leitura.js` novo vem no pacote (se o site serve
+uma copia propria do script, troque pela nova).
+
+- Leitura **por origem da visita**: cada abertura conta tambem para o seu canal
+  e a sua fonte (o `utm_source` do link, ou quem mandou: `instagram`, `google`,
+  `linkedin`...). Navegar dentro do site mantem a origem da entrada (guardada
+  so na sessao do navegador). Tabela interna nova, `SourceReading`.
+- **Ate onde rolou**: o script manda a profundidade (0 a 100) e o site conta
+  `half_read` (passou da metade do texto), no total do dia e por origem.
+- `GET /insights/` devolve `half_read` em cada linha e `reading_by_source` na
+  primeira pagina. `docs/openapi.yaml` atualizado (`LeituraPorOrigem`).
+
 ## 1.2.1
 
 Só documentação; nada a rodar.

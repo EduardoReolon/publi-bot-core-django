@@ -26,7 +26,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from publibot_core.models import Publication
-from publibot_core.models._internos import Conversion, DailyReading
+from publibot_core.models._internos import Conversion, DailyReading, SourceReading
 from publibot_core.throttle import excedeu
 
 TAMANHO_MAXIMO = 4096
@@ -88,22 +88,49 @@ def leitura(request):
         return HttpResponse(status=204)
 
     ativo = _segundos(dados.get("active"))
-    incrementos = {
+    leitura_comum = {
         "views": F("views") + 1,
         "engaged_seconds": F("engaged_seconds") + ativo,
     }
     if ativo >= LEITURA_MINIMA:
-        incrementos["engaged_views"] = F("engaged_views") + 1
+        leitura_comum["engaged_views"] = F("engaged_views") + 1
     if dados.get("end"):
-        incrementos["read_to_end"] = F("read_to_end") + 1
+        leitura_comum["read_to_end"] = F("read_to_end") + 1
+    if dados.get("end") or _profundidade(dados.get("depth")) >= METADE:
+        leitura_comum["half_read"] = F("half_read") + 1
+    incrementos = dict(leitura_comum)
     if dados.get("cta_seen"):
         incrementos["cta_views"] = F("cta_views") + 1
     if dados.get("cta_click"):
         incrementos["cta_clicks"] = F("cta_clicks") + 1
 
-    linha, _ = DailyReading.objects.get_or_create(publication=publicacao, day=timezone.localdate())
+    hoje = timezone.localdate()
+    linha, _ = DailyReading.objects.get_or_create(publication=publicacao, day=hoje)
     DailyReading.objects.filter(pk=linha.pk).update(**incrementos)
+
+    canal = _canal(dados.get("channel"))
+    if canal:
+        por_origem, _ = SourceReading.objects.get_or_create(
+            publication=publicacao, day=hoje, channel=canal, source=_fonte(dados.get("source"))
+        )
+        SourceReading.objects.filter(pk=por_origem.pk).update(**leitura_comum)
     return HttpResponse(status=204)
+
+
+# Profundidade de rolagem (0 a 100) que conta como "leu ate a metade".
+METADE = 50
+
+
+def _profundidade(valor) -> int:
+    try:
+        return max(0, min(int(valor), 100))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _fonte(valor) -> str:
+    """utm_source (ou quem mandou), em minusculas e so letras, numeros, - e _."""
+    return re.sub(r"[^a-z0-9_-]", "", str(valor or "").lower())[:40]
 
 
 @csrf_exempt

@@ -565,6 +565,9 @@ def publications(request):
 
 
 TAMANHO_DA_PAGINA_DE_LEITURA = 500
+# Leitura por origem que vai na primeira pagina (as mais recentes): ate 90
+# dias x poucos canais por artigo cabe folgado.
+MAXIMO_POR_ORIGEM = 5000
 JANELA_MAXIMA_EM_DIAS = 90
 
 
@@ -573,7 +576,7 @@ def insights(request):
     """Leitura por dia e conversoes, desde `since` (recurso `insights`)."""
     from datetime import date, timedelta
 
-    from publibot_core.models._internos import Conversion, DailyReading
+    from publibot_core.models._internos import Conversion, DailyReading, SourceReading
 
     bloqueio = _proteger(request)
     if bloqueio is not None:
@@ -597,6 +600,16 @@ def insights(request):
 
     # As conversoes sao poucas: vao inteiras, so na primeira pagina.
     conversoes = [] if inicio else list(Conversion.objects.filter(day__gte=desde))
+    # A leitura por origem tambem, so na primeira pagina (as mais recentes).
+    por_origem = (
+        []
+        if inicio
+        else list(
+            SourceReading.objects.filter(day__gte=desde).order_by("-day", "id")[
+                :MAXIMO_POR_ORIGEM
+            ]
+        )
+    )
 
     return JsonResponse(
         {
@@ -608,10 +621,25 @@ def insights(request):
                     "engaged_views": linha.engaged_views,
                     "engaged_seconds": linha.engaged_seconds,
                     "read_to_end": linha.read_to_end,
+                    "half_read": linha.half_read,
                     "cta_views": linha.cta_views,
                     "cta_clicks": linha.cta_clicks,
                 }
                 for linha in linhas
+            ],
+            "reading_by_source": [
+                {
+                    "remote_id": str(linha.publication_id),
+                    "date": linha.day.isoformat(),
+                    "channel": linha.channel,
+                    "source": linha.source,
+                    "views": linha.views,
+                    "engaged_views": linha.engaged_views,
+                    "engaged_seconds": linha.engaged_seconds,
+                    "read_to_end": linha.read_to_end,
+                    "half_read": linha.half_read,
+                }
+                for linha in por_origem
             ],
             "conversions": [
                 {

@@ -187,6 +187,33 @@ def test_insights_leva_leitura_e_conversao(api, client, artigo):
     dados = api.get("insights/", since=timezone.localdate().isoformat()).json()
     [linha] = dados["reading"]
     assert linha["views"] == 1 and linha["engaged_views"] == 1 and linha["cta_clicks"] == 1
+    assert linha["half_read"] == 1  # chegou ao fim: passou da metade
+    assert dados["reading_by_source"] == []  # sem origem, so o total
     [conversao] = dados["conversions"]
     assert conversao["last_channel"] == "paid"
     assert conversao["journey"] == [{"remote_id": remote_id, "engaged_seconds": 45}]
+
+
+
+def test_leitura_por_origem_e_profundidade(api, client, artigo):
+    """Cada abertura conta no total e na sua origem (canal e fonte); a metade
+    conta pela profundidade, e fonte estranha vira so letras e numeros."""
+    remote_id = api.post("publish/", artigo).json()["remote_id"]
+    for corpo in (
+        {"id": remote_id, "active": 40, "depth": 60, "channel": "social", "source": "instagram"},
+        {"id": remote_id, "active": 5, "depth": 20, "channel": "social", "source": "Instagram"},
+        {"id": remote_id, "active": 90, "end": True, "channel": "organic", "source": "google"},
+        {"id": remote_id, "active": 12, "depth": 80, "channel": "x<script>", "source": "a b!c"},
+    ):
+        client.post("/api/v1/leitura/", json.dumps(corpo), content_type="application/json")
+    from django.utils import timezone
+
+    dados = api.get("insights/", since=timezone.localdate().isoformat()).json()
+    [total] = dados["reading"]
+    assert total["views"] == 4 and total["half_read"] == 3
+    origens = {(o["channel"], o["source"]): o for o in dados["reading_by_source"]}
+    insta = origens[("social", "instagram")]
+    assert insta["views"] == 2 and insta["engaged_views"] == 1 and insta["half_read"] == 1
+    assert insta["engaged_seconds"] == 45
+    assert origens[("organic", "google")]["read_to_end"] == 1
+    assert origens[("other", "abc")]["views"] == 1

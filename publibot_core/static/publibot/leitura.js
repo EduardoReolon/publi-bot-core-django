@@ -5,8 +5,9 @@
  * SEU servidor (nunca para o PubliBot):
  *
  *   - um resumo por abertura de artigo: tempo ATIVO (aba visivel e interacao
- *     nos ultimos 30 s), se chegou ao fim do texto, se viu e se clicou na
- *     chamada;
+ *     nos ultimos 30 s), ate onde rolou e se chegou ao fim do texto, se viu e
+ *     se clicou na chamada, e a origem da visita (canal e fonte: utm_source
+ *     ou quem mandou);
  *   - na conversao (clique num elemento com data-publibot-conversao), a
  *     jornada: os artigos lidos nos ultimos 30 dias e o canal de cada entrada
  *     no site (anuncio, busca organica, rede social...), guardados no proprio
@@ -109,6 +110,37 @@
   var entrada = canalDaEntrada();
   if (entrada) gravarCanais(lerCanais().concat([{ c: entrada, d: Date.now() }]));
 
+  // A FONTE da entrada: o utm_source do link ou, sem ele, quem mandou
+  // (instagram, google...). Fica na sessao do navegador, para a leitura de um
+  // segundo artigo, na mesma visita, contar para a mesma origem.
+  var NOMES_DE_ORIGEM = [
+    [/(^|\.)instagram\./, "instagram"], [/(^|\.)facebook\.|(^|\.)fb\.com$/, "facebook"],
+    [/(^|\.)linkedin\.|(^|\.)lnkd\.in$/, "linkedin"], [/(^|\.)t\.co$|(^|\.)twitter\.|(^|\.)x\.com$/, "x"],
+    [/(^|\.)youtube\.|(^|\.)youtu\.be$/, "youtube"], [/(^|\.)tiktok\./, "tiktok"],
+    [/(^|\.)whatsapp\./, "whatsapp"], [/(^|\.)google\./, "google"], [/(^|\.)bing\./, "bing"],
+    [/(^|\.)duckduckgo\./, "duckduckgo"], [/(^|\.)yahoo\./, "yahoo"]
+  ];
+  function fonteDaEntrada() {
+    var utm = (new URLSearchParams(location.search).get("utm_source") || "").toLowerCase();
+    if (utm) return utm.replace(/[^a-z0-9_-]/g, "").slice(0, 40);
+    var host;
+    try { host = new URL(document.referrer).hostname.replace(/^www\./, ""); } catch (e) { return ""; }
+    for (var i = 0; i < NOMES_DE_ORIGEM.length; i++) {
+      if (NOMES_DE_ORIGEM[i][0].test(host)) return NOMES_DE_ORIGEM[i][1];
+    }
+    return host.split(".")[0].replace(/[^a-z0-9_-]/g, "").slice(0, 40);
+  }
+  var ORIGEM = "publibot:origem";
+  var origem = { c: "direct", s: "" };
+  try {
+    if (entrada) {
+      origem = { c: entrada, s: fonteDaEntrada() };
+      sessionStorage.setItem(ORIGEM, JSON.stringify(origem));
+    } else {
+      origem = JSON.parse(sessionStorage.getItem(ORIGEM)) || origem;
+    }
+  } catch (e) { if (entrada) origem = { c: entrada, s: "" }; }
+
   function novoId() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
     return "xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx".replace(/x/g, function () {
@@ -118,7 +150,7 @@
 
   var artigo = document.querySelector("[data-publibot-id]");
   var id = artigo ? artigo.getAttribute("data-publibot-id") : null;
-  var ativo = 0, ultimaInteracao = Date.now();
+  var ativo = 0, ultimaInteracao = Date.now(), profundidade = 0;
   var chegouAoFim = false, viuChamada = false, clicouChamada = false, enviado = false, converteu = false;
 
   // Conversao: vale em qualquer pagina do site, inclusive a landing page.
@@ -148,6 +180,16 @@
   ["scroll", "pointerdown", "pointermove", "keydown", "touchstart", "wheel"].forEach(function (nome) {
     window.addEventListener(nome, function () { ultimaInteracao = Date.now(); }, { passive: true });
   });
+
+  // Ate onde o texto ja passou pela tela, de 0 a 100 (o maior visto).
+  function medirProfundidade() {
+    var caixa = artigo.getBoundingClientRect();
+    if (caixa.height <= 0) return;
+    var visto = (window.innerHeight - caixa.top) / caixa.height * 100;
+    profundidade = Math.max(profundidade, Math.min(100, Math.max(0, Math.round(visto))));
+  }
+  window.addEventListener("scroll", medirProfundidade, { passive: true });
+  medirProfundidade();
 
   setInterval(function () {
     if (document.visibilityState === "visible" && Date.now() - ultimaInteracao < INATIVO_APOS && ativo < TETO) {
@@ -182,7 +224,9 @@
   function concluir() {
     if (enviado) return;
     enviado = true;
-    enviar("leitura/", { id: id, active: ativo, end: chegouAoFim, cta_seen: viuChamada, cta_click: clicouChamada });
+    enviar("leitura/", { id: id, active: ativo, end: chegouAoFim, cta_seen: viuChamada,
+      cta_click: clicouChamada, depth: chegouAoFim ? 100 : profundidade,
+      channel: origem.c, source: origem.s });
     // Depois de converter, a jornada recomeca vazia: este artigo ja contou.
     if (!converteu) gravarJornada(acrescentar(lerJornada(), id, ativo));
   }
