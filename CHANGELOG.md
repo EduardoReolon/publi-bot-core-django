@@ -1,5 +1,17 @@
 # Mudanças
 
+## 1.4.0
+
+Nada a rodar (sem migração). Atualize o pacote e faça o deploy do site.
+
+- **Destaque no meio do texto**: o `html_content` pode trazer ate dois
+  `<aside data-publibot="destaque"><p><strong>frase</strong></p></aside>` — a
+  frase que resume a ideia mais importante de uma secao, em letra maior. O
+  sanitizador aceita (com o texto dentro) e o `publibot/head.html` traz um
+  estilo padrao (borda lateral, fonte 1,4x); para mudar, use o seletor
+  `aside[data-publibot="destaque"]` no CSS do site. Sem o `head.html`, o
+  destaque aparece como paragrafo em negrito.
+
 ## 1.3.0
 
 Rode `migrate` (faça um novo deploy do site; ver `docs/IMPLANTACAO.md`, "Atualizar").

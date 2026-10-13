@@ -17,3 +17,8 @@
 <meta property="article:published_time" content="{{ p.data_de_publicacao|date:'c' }}">
 <meta property="article:modified_time" content="{{ p.data_de_atualizacao|date:'c' }}">
 {{ json_ld }}
+{# O destaque no meio do texto (a frase em letra maior). Sobrescreva no CSS do site. #}
+<style>
+aside[data-publibot="destaque"]{margin:2rem 0;padding:.4rem 0 .4rem 1.1rem;border-left:4px solid currentColor;font-size:1.4em;line-height:1.35}
+aside[data-publibot="destaque"] p{margin:0}
+</style>
