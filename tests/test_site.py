@@ -78,6 +78,20 @@ def test_sanitizador_mantem_a_lista_de_referencias():
     assert "<summary>Referências</summary>" in limpo and "onclick" not in limpo
 
 
+def test_sanitizador_mantem_o_destaque_e_tira_aside_estranho():
+    from publibot_core.sanitize import sanitizar
+
+    html = (
+        '<p>A.</p><aside data-publibot="destaque" onclick="x()"><p><strong>Frase</strong></p>'
+        '</aside><aside data-publibot="outro"><p>B</p></aside><aside data-publibot="chamada">'
+        "texto</aside>"
+    )
+    limpo = sanitizar(html)
+    assert '<aside data-publibot="destaque"><p><strong>Frase</strong></p></aside>' in limpo
+    assert "onclick" not in limpo and "outro" not in limpo and "<p>B</p>" in limpo
+    assert '<aside data-publibot="chamada"></aside>' in limpo
+
+
 def test_bloco_usa_o_texto_do_artigo_e_o_padrao_como_reserva():
     p = _publicacao(
         call_to_action_copy={"inline": {"title": "No meio <b>&</b>", "text": "Frase do meio"}}

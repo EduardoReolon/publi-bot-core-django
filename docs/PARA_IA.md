@@ -128,6 +128,11 @@ chamada, mantenha:
 
 É por eles que a medição conta a chamada vista, o clique e a conversão.
 
+O corpo pode trazer até dois **destaques** (a frase em letra maior no meio do
+texto): `<aside data-publibot="destaque">`. O `publibot/head.html` já traz um
+estilo padrão; para mudar, use o seletor `aside[data-publibot="destaque"]` no
+CSS do site.
+
 O texto do bloco pode vir do artigo. O PubliBot escreve, para cada artigo, um
 título, uma frase e o texto do botão ligados ao que o leitor acabou de ler (no
 meio, a seção onde o bloco entra; no fim, o fecho do artigo). O template recebe

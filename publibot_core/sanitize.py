@@ -66,6 +66,10 @@ ELEMENTO_DA_CHAMADA = '<aside data-publibot="chamada"></aside>'
 _CHAMADA = re.compile(r'<aside data-publibot="chamada">.*?</aside>', re.DOTALL)
 _ASIDE_SOLTO = re.compile(r"</?aside>")
 _MARCA = "\x00chamada\x00"
+# O destaque (a frase em letra maior no meio do texto): o outro `aside` aceito,
+# este com o texto dentro (ja sanitizado).
+_DESTAQUE = re.compile(r'<aside data-publibot="destaque">(.*?)</aside>', re.DOTALL)
+_GUARDA = "\x00destaque{}\x00"
 
 # Presenca destas tags e motivo para recusar com 422, em vez de apenas
 # remover: indicam que algo esta errado na origem, e aceitar em silencio
@@ -87,7 +91,7 @@ def sanitizar(html: str) -> str:
         html or "",
         tags=TAGS_PERMITIDAS | {"aside"},
         attributes=ATRIBUTOS_PERMITIDOS,
-        tag_attribute_values={"aside": {"data-publibot": {"chamada"}}},
+        tag_attribute_values={"aside": {"data-publibot": {"chamada", "destaque"}}},
         url_schemes=ESQUEMAS_PERMITIDOS,
         # Obrigatorio quando `rel` esta entre os atributos permitidos de <a>:
         # sem isto o nh3 aborta o processo (nao levanta excecao, aborta) por
@@ -97,10 +101,20 @@ def sanitizar(html: str) -> str:
     )
     # A chamada fica vazia e uma so; qualquer outro `aside` perde a tag (o
     # texto de dentro, ja sanitizado, fica).
+    destaques: list[str] = []
+
+    def guardar(achado: re.Match) -> str:
+        destaques.append(achado.group(0))
+        return _GUARDA.format(len(destaques) - 1)
+
+    limpo = _DESTAQUE.sub(guardar, limpo)
     limpo = _CHAMADA.sub(_MARCA, limpo)
     limpo = _ASIDE_SOLTO.sub("", limpo)
     limpo = limpo.replace(_MARCA, ELEMENTO_DA_CHAMADA, 1)
-    return limpo.replace(_MARCA, "")
+    limpo = limpo.replace(_MARCA, "")
+    for n, bloco in enumerate(destaques):
+        limpo = limpo.replace(_GUARDA.format(n), bloco)
+    return limpo
 
 
 def sanitizar_texto(valor: str, *, limite: int = 300) -> str:
